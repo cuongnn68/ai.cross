@@ -116,17 +116,20 @@ func run(args []string) error {
 		return nil
 	case "status":
 		if !verbose {
-			detected := 0
+			var detected []string
 			for _, agent := range agents {
 				if agent.installed() != agentNotDetected {
-					detected++
+					detected = append(detected, agent.Name)
 				}
 			}
 			scope := "local"
 			if a.global {
 				scope = "global"
 			}
-			fmt.Printf("%s | %d/%d agents detected on PATH | -v for details\n", scope, detected, len(agents))
+			fmt.Printf("%s | %d/%d agents detected on PATH | -v for details\n", scope, len(detected), len(agents))
+			if len(detected) > 0 {
+				fmt.Println(strings.Join(detected, ", "))
+			}
 			return nil
 		}
 		fmt.Printf("ai-cross %s\nScope: %s\n", version, a.root)

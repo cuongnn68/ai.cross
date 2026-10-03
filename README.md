@@ -39,7 +39,7 @@ printf 'Use concise answers.\n' | ./bin/ai-cross apply --local
 - Local scope uses cwd or `--project`; it does not search parent repos.
 - Applies to all registry paths, regardless of installation detection.
 - `status` detects executables on PATH; IDE extensions/cloud installations cannot be reliably detected this way.
-- `status` shows one line with scope and the number of agents detected on PATH; `-v` / `--verbose` shows version, paths, and per-agent details.
+- `status` shows scope, the number of agents detected on PATH, and their names; `-v` / `--verbose` shows version, paths, and per-agent details.
 - Glob rules overwrite existing matching files; empty rule dirs receive `ai-cross.md` (or the matching extension). Mode-specific wildcard dirs must already exist.
 - Settings-only agents and user-selected instruction files need config `additional` paths. Arbitrary agent configs are not rewritten.
 - Local paths stay within the project; global paths stay within the home dir. Symlink instruction paths are rejected.
