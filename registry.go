@@ -51,11 +51,14 @@ func (a agent) locations(global bool, home string) []string {
 	}
 	return result
 }
+
+const agentNotDetected = "not detected on PATH (IDE/cloud installs may exist)"
+
 func (a agent) installed() string {
 	for _, cmd := range a.Commands {
 		if p, err := exec.LookPath(cmd); err == nil {
 			return p
 		}
 	}
-	return "not detected on PATH (IDE/cloud installs may exist)"
+	return agentNotDetected
 }

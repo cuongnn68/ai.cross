@@ -115,12 +115,22 @@ func run(args []string) error {
 		fmt.Printf("Config: %s (or config.yaml)\n", filepath.Join(a.data, "config.yml"))
 		return nil
 	case "status":
+		if !verbose {
+			detected := 0
+			for _, agent := range agents {
+				if agent.installed() != agentNotDetected {
+					detected++
+				}
+			}
+			scope := "local"
+			if a.global {
+				scope = "global"
+			}
+			fmt.Printf("%s | %d/%d agents detected on PATH | -v for details\n", scope, detected, len(agents))
+			return nil
+		}
 		fmt.Printf("ai-cross %s\nScope: %s\n", version, a.root)
 		for _, agent := range agents {
-			if !verbose {
-				fmt.Printf("%s: %s\n", agent.Name, agent.installed())
-				continue
-			}
 			fmt.Printf("\n%s: %s\n", agent.Name, agent.installed())
 			for _, scope := range []bool{false, true} {
 				label, base := "local", a.root
