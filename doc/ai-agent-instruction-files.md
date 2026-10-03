@@ -1,0 +1,94 @@
+# AI coding agents: instruction file locations
+
+- Checked: **2026-10-01** against the official docs linked under each agent.
+
+## File locations
+
+- **Claude Code**
+  - Repo: `CLAUDE.md` or `.claude/CLAUDE.md`; `.claude/rules/*.md`; personal repo rules in `CLAUDE.local.md`
+  - Global / user: `~/.claude/CLAUDE.md`; `~/.claude/rules/*.md`
+  - References: [Memory and instruction files](https://code.claude.com/docs/en/memory)
+- **OpenAI Codex**
+  - Repo: `AGENTS.md`; `AGENTS.override.md` takes precedence in the same dir
+  - Global / user: `~/.codex/AGENTS.md` or `~/.codex/AGENTS.override.md`; base dir changes with `CODEX_HOME`
+  - References: [AGENTS.md discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
+- **GitHub Copilot**
+  - Repo: `.github/copilot-instructions.md`; `.github/instructions/*.instructions.md`; `AGENTS.md` support depends on client/feature
+  - Global / user: CLI: `~/.copilot/copilot-instructions.md`; other clients have their own settings
+  - References: [Repo instructions](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/add-custom-instructions/add-repository-instructions), [CLI instructions](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-custom-instructions), [VS Code instructions](https://code.visualstudio.com/docs/agent-customization/custom-instructions)
+- **Cursor**
+  - Repo: `.cursor/rules/*.mdc`; `AGENTS.md`; CLI also reads root `CLAUDE.md`
+  - Global / user: User Rules in Cursor Settings
+  - References: [Rules](https://cursor.com/docs/rules), [CLI](https://docs.cursor.com/en/cli/using)
+- **Gemini CLI**
+  - Repo: `GEMINI.md` in workspace, parent dirs, and relevant nested dirs
+  - Global / user: `~/.gemini/GEMINI.md`
+  - References: [Context hierarchy](https://geminicli.com/docs/cli/gemini-md/)
+- **Google Antigravity**
+  - Repo: `AGENTS.md`, `GEMINI.md`, `.agents/AGENTS.md`, `.agents/GEMINI.md`, `.agents/rules/*.md`; legacy `.agent/rules/*.md`
+  - Global / user: `~/.gemini/AGENTS.md`, `~/.gemini/GEMINI.md`, equivalent files under `~/.gemini/config/`, and `~/.gemini/config/rules/*.md`
+  - References: [Rules and surface-specific locations](https://antigravity.google/docs/rules?tab=ide)
+- **OpenCode**
+  - Repo: `AGENTS.md`; `CLAUDE.md` fallback
+  - Global / user: `~/.config/opencode/AGENTS.md`; `~/.claude/CLAUDE.md` fallback
+  - References: [Rules](https://opencode.ai/docs/rules/)
+- **Windsurf / Devin Desktop, Cascade**
+  - Repo: `AGENTS.md`; `.devin/rules/*.md` preferred; `.windsurf/rules/*.md` fallback; legacy `.windsurfrules`
+  - Global / user: `~/.codeium/windsurf/memories/global_rules.md`
+  - References: [Cascade rules](https://docs.devin.ai/desktop/cascade/memories)
+- **Cline**
+  - Repo: `.clinerules/*.md` or `.cline/rules/*.md`
+  - Global / user: `~/Documents/Cline/Rules/`; also searches `~/.cline/rules/` and `~/Cline/Rules/`
+  - References: [Rules](https://docs.cline.bot/customization/cline-rules)
+- **Roo Code**
+  - Repo: `.roo/rules/`; `.roo/rules-{mode}/`; legacy `.roorules`; optional `AGENTS.md` / `AGENT.md` support
+  - Global / user: `~/.roo/rules/`; `~/.roo/rules-{mode}/`
+  - References: [Custom instructions](https://roocodeinc.github.io/Roo-Code/features/custom-instructions/)
+- **Kilo Code**
+  - Repo: `AGENTS.md`; compatible `CLAUDE.md` and `CONTEXT.md`; extra sources through `instructions` in `kilo.jsonc`
+  - Global / user: `~/.config/kilo/AGENTS.md`
+  - References: [Custom instructions](https://kilo.ai/docs/customize/custom-instructions)
+- **Kiro**
+  - Repo: `.kiro/steering/*.md`
+  - Global / user: `~/.kiro/steering/*.md`
+  - References: [Steering](https://kiro.dev/docs/steering/), [CLI config scopes](https://kiro.dev/docs/cli/chat/configuration/)
+- **JetBrains Junie CLI**
+  - Repo: `.junie/AGENTS.md` first; otherwise root `AGENTS.md` plus `.junie/playbook.md` and `.junie/rules/*.md`; legacy `.junie/guidelines.md` / `.junie/guidelines/`
+  - Global / user: `~/.junie/AGENTS.md`
+  - References: [Guidelines and memory](https://junie.jetbrains.com/docs/guidelines-and-memory.html)
+- **Augment / Auggie CLI**
+  - Repo: `CLAUDE.md`, `AGENTS.md`, `.augment-guidelines`, `.augment/rules/`; explicit file via `--rules`
+  - Global / user: `~/.augment/rules/`
+  - References: [Rules and guidelines](https://docs.augmentcode.com/cli/rules)
+- **Continue, IDE extension**
+  - Repo: `.continue/rules/`
+  - Global / user: Fixed global rules file not verified in cited page; rules can also be configured through YAML config
+  - References: [Rules](https://docs.continue.dev/customize/rules), [Config reference](https://docs.continue.dev/reference)
+- **Aider**
+  - Repo: User-selected file, eg `CONVENTIONS.md`; load with `--read` or `read:` in `.aider.conf.yml`
+  - Global / user: `~/.aider.conf.yml` can configure `read:` paths; no required global Markdown filename
+  - References: [Conventions](https://aider.chat/docs/usage/conventions.html), [YAML config](https://aider.chat/docs/config/aider_conf.html)
+- **Replit Agent**
+  - Repo: `replit.md` at project root
+  - Global / user: Fixed global instruction file not verified in cited page
+  - References: [replit.md](https://docs.replit.com/features/project-setup/replit-dot-md)
+- **Devin, cloud**
+  - Repo: `AGENTS.md` in repo
+  - Global / user: Local home-dir instruction path not verified for cloud sessions; shared context can use Skills in Plugins
+  - References: [AGENTS.md](https://docs.devin.ai/onboard-devin/agents-md), [Knowledge migration](https://docs.devin.ai/product-guides/knowledge)
+- **Warp**
+  - Repo: `AGENTS.md`; legacy `WARP.md`; root and nested dirs
+  - Global / user: Warp Drive → Personal → Rules → Global
+  - References: [Rules](https://docs.warp.dev/agents/capabilities/rules/)
+- **goose**
+  - Repo: `.goosehints` in repo root and nested dirs
+  - Global / user: `~/.config/goose/.goosehints`
+  - References: [Hints](https://goose-docs.ai/docs/guides/context-engineering/using-goosehints/)
+- **Mistral Vibe**
+  - Repo: `AGENTS.md` from cwd through trust root
+  - Global / user: `~/.vibe/AGENTS.md`
+  - References: [Official repo: custom system prompts](https://github.com/mistralai/mistral-vibe/blob/main/README.md#custom-system-prompts)
+- **Factory Droid**
+  - Repo: `AGENTS.md` in repo dirs or `.factory/`, `.agents/`, `.agent/` context dirs; compatible `CLAUDE.md`
+  - Global / user: `AGENTS.md` under `~/.factory/`, `~/.agents/`, or `~/.agent/`
+  - References: [AGENTS.md discovery](https://docs.factory.com/harness/agents-md)
