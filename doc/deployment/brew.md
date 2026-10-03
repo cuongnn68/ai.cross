@@ -1,5 +1,22 @@
 # Homebrew deployment
 
+## Install from this repo
+
+```sh
+brew tap cuongnn68/ai.cross https://github.com/cuongnn68/ai.cross.git
+brew install --HEAD cuongnn68/ai.cross/ai-cross
+```
+
+- Formula: [ai-cross.rb](../../Formula/ai-cross.rb).
+- Push the formula to `main` before sharing these commands.
+- Builds the latest `main`; no release tag is required.
+- Upgrade: `brew update && brew upgrade --fetch-HEAD cuongnn68/ai.cross/ai-cross`.
+- Verify yourself: `brew test cuongnn68/ai.cross/ai-cross`.
+- Uses the existing GitHub repo as a tap via its explicit URL.
+- Reference: [Tap guide](https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap).
+
+## Future release publishing
+
 - Checked: **2026-10-03** against the official refs below.
 - Package names, owner, and URLs below are placeholders.
 

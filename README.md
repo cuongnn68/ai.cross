@@ -2,6 +2,23 @@
 
 Sync instructions across AI coding agents. Registry: [agent locations](doc/ai-agent-instruction-files.md). Requirements: [spec](doc/requirement.md).
 
+Install from GitHub with Homebrew (macOS / Linux):
+
+```sh
+brew tap cuongnn68/ai.cross https://github.com/cuongnn68/ai.cross.git
+brew install --HEAD cuongnn68/ai.cross/ai-cross
+ai-cross help
+```
+
+- The [formula](Formula/ai-cross.rb) builds `main` from source and installs Go as a build dependency.
+- Requires the formula to be pushed to GitHub first; access to the repo is required.
+- No tagged release exists yet, so `--HEAD` is required.
+- Upgrade: `brew update && brew upgrade --fetch-HEAD cuongnn68/ai.cross/ai-cross`.
+- Uninstall: `brew uninstall ai-cross` (instruction files and `~/.ai.cross` remain).
+- The explicit tap URL uses this repo directly ([Homebrew tap docs](https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap)).
+
+Build locally and use:
+
 ```sh
 go build -o bin/ai-cross .
 ./bin/ai-cross status --local
@@ -61,4 +78,8 @@ Verification (run yourself):
 go test ./...
 ```
 
-Deployment is outside this implementation.
+Homebrew formula verification (run yourself after tapping):
+
+```sh
+brew test cuongnn68/ai.cross/ai-cross
+```
