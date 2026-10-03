@@ -22,7 +22,7 @@ var version = "dev"
 const help = `ai-cross — synchronize AI agent instruction files
 
 Commands:
-  status [--global | --local] [--project DIR]
+  status [--global | --local] [--project DIR] [-v | --verbose]
   version
   apply (--global | --local) [--project DIR] [--file FILE | --clipboard | --input] [--no-backup]
   histories [--global | --local] [--project DIR] [--applies | --backups]
@@ -32,6 +32,7 @@ Commands:
   help
 
 Status and histories default to local scope. Local scope is --project or cwd.
+Status defaults to a summary; -v or --verbose includes all instruction file locations.
 Input defaults to a multiline editor; Ctrl+S applies, Esc cancels. Piped stdin is supported.
 Config: ~/.ai.cross/config.yml (or config.yaml).
 `
@@ -72,6 +73,11 @@ func run(args []string) error {
 	project := fs.String("project", ".", "project directory")
 	var file, name string
 	var clipboard, input, noBackup, applies, backups bool
+	var verbose bool
+	if command == "status" {
+		fs.BoolVar(&verbose, "v", false, "show full status with instruction file locations")
+		fs.BoolVar(&verbose, "verbose", false, "show full status with instruction file locations")
+	}
 	if command == "apply" {
 		fs.StringVar(&file, "file", "", "instruction source file")
 		fs.BoolVar(&clipboard, "clipboard", false, "read clipboard")
@@ -111,6 +117,10 @@ func run(args []string) error {
 	case "status":
 		fmt.Printf("ai-cross %s\nScope: %s\n", version, a.root)
 		for _, agent := range agents {
+			if !verbose {
+				fmt.Printf("%s: %s\n", agent.Name, agent.installed())
+				continue
+			}
 			fmt.Printf("\n%s: %s\n", agent.Name, agent.installed())
 			for _, scope := range []bool{false, true} {
 				label, base := "local", a.root

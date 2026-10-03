@@ -22,6 +22,7 @@ Build locally and use:
 ```sh
 go build -o bin/ai-cross .
 ./bin/ai-cross status --local
+./bin/ai-cross status --local --verbose
 ./bin/ai-cross apply --local --file instructions.md
 ./bin/ai-cross apply --global --clipboard
 ./bin/ai-cross apply --local --project /path/to/repo
@@ -38,6 +39,7 @@ printf 'Use concise answers.\n' | ./bin/ai-cross apply --local
 - Local scope uses cwd or `--project`; it does not search parent repos.
 - Applies to all registry paths, regardless of installation detection.
 - `status` detects executables on PATH; IDE extensions/cloud installations cannot be reliably detected this way.
+- `status` shows version, scope, and one detection line per agent; `-v` / `--verbose` adds all local and global instruction file locations.
 - Glob rules overwrite existing matching files; empty rule dirs receive `ai-cross.md` (or the matching extension). Mode-specific wildcard dirs must already exist.
 - Settings-only agents and user-selected instruction files need config `additional` paths. Arbitrary agent configs are not rewritten.
 - Local paths stay within the project; global paths stay within the home dir. Symlink instruction paths are rejected.
