@@ -1,0 +1,343 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
+
+	"golang.org/x/term"
+)
+
+var version = "dev"
+
+const help = `ai-cross — synchronize AI agent instruction files
+
+Commands:
+  status [--global | --local] [--project DIR]
+  version
+  apply (--global | --local) [--project DIR] [--file FILE | --clipboard | --input] [--no-backup]
+  histories [--global | --local] [--project DIR] [--applies | --backups]
+  restore list [--global | --local] [--project DIR] [--applies | --backups]
+  restore (--global | --local) --name TIMESTAMP[.md] [--project DIR]
+  config
+  help
+
+Status and histories default to local scope. Local scope is --project or cwd.
+Input defaults to a multiline editor; Ctrl+S applies, Esc cancels. Piped stdin is supported.
+Config: ~/.ai.cross/config.yml (or config.yaml).
+`
+
+func main() {
+	if err := run(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+}
+func run(args []string) error {
+	if len(args) == 0 {
+		fmt.Print(help)
+		return nil
+	}
+	command := args[0]
+	args = args[1:]
+	if command == "help" || command == "--help" || command == "-h" {
+		fmt.Print(help)
+		return nil
+	}
+	if command == "version" || command == "--version" {
+		fmt.Println(version)
+		return nil
+	}
+	if command == "restore" && len(args) > 0 && args[0] == "list" {
+		command = "histories"
+		args = args[1:]
+	}
+	switch command {
+	case "status", "apply", "histories", "restore", "config":
+	default:
+		return fmt.Errorf("unknown command %q; use help", command)
+	}
+	fs := flag.NewFlagSet(command, flag.ContinueOnError)
+	global := fs.Bool("global", false, "use home-dir instructions")
+	local := fs.Bool("local", false, "use project instructions")
+	project := fs.String("project", ".", "project directory")
+	var file, name string
+	var clipboard, input, noBackup, applies, backups bool
+	if command == "apply" {
+		fs.StringVar(&file, "file", "", "instruction source file")
+		fs.BoolVar(&clipboard, "clipboard", false, "read clipboard")
+		fs.BoolVar(&input, "input", false, "read interactive input or stdin")
+		fs.BoolVar(&noBackup, "no-backup", false, "skip pre-apply backup")
+	}
+	if command == "restore" {
+		fs.StringVar(&name, "name", "", "history record name")
+	}
+	if command == "histories" {
+		fs.BoolVar(&applies, "applies", false, "only applied instructions")
+		fs.BoolVar(&backups, "backups", false, "only pre-apply backups")
+	}
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %s", strings.Join(fs.Args(), " "))
+	}
+	if *global && *local {
+		return errors.New("choose one scope: --global or --local")
+	}
+	if (command == "apply" || command == "restore") && !*global && !*local {
+		return errors.New("explicit --global or --local is required")
+	}
+	a, err := newApp(*global, *project)
+	if err != nil {
+		return err
+	}
+	switch command {
+	case "config":
+		fmt.Printf("Config: %s (or config.yaml)\n", filepath.Join(a.data, "config.yml"))
+		return nil
+	case "status":
+		fmt.Printf("ai-cross %s\nScope: %s\n", version, a.root)
+		for _, agent := range agents {
+			fmt.Printf("\n%s: %s\n", agent.Name, agent.installed())
+			for _, scope := range []bool{false, true} {
+				label, base := "local", a.root
+				if a.global {
+					base, err = filepath.Abs(*project)
+					if err != nil {
+						return err
+					}
+				}
+				if scope {
+					label, base = "global", a.home
+				}
+				locations := agent.locations(scope, a.home)
+				if len(locations) == 0 {
+					fmt.Printf("  %s: no fixed file; use config additional paths\n", label)
+				}
+				for _, p := range locations {
+					if !filepath.IsAbs(p) {
+						p = filepath.Join(base, p)
+					}
+					fmt.Printf("  %s: %s\n", label, p)
+				}
+			}
+		}
+		return nil
+	case "histories":
+		if applies && backups {
+			return errors.New("choose --applies or --backups")
+		}
+		return a.list(applies, backups)
+	case "apply":
+		count := 0
+		for _, v := range []bool{file != "", clipboard, input} {
+			if v {
+				count++
+			}
+		}
+		if count > 1 {
+			return errors.New("choose one source: --file, --clipboard, or --input")
+		}
+		targets, err := a.targets()
+		if err != nil {
+			return err
+		}
+		if len(targets) == 0 {
+			return errors.New("no instruction targets")
+		}
+		var content []byte
+		switch {
+		case file != "":
+			content, err = os.ReadFile(file)
+		case clipboard:
+			content, err = readClipboard()
+		default:
+			content, err = readInput()
+		}
+		if err != nil {
+			return err
+		}
+		if len(strings.TrimSpace(string(content))) == 0 {
+			return errors.New("instructions cannot be empty")
+		}
+		next := make([]snapshot, 0, len(targets))
+		for _, p := range targets {
+			s, e := capture(p)
+			if e != nil {
+				return e
+			}
+			s.Data = content
+			s.Exists = true
+			next = append(next, s)
+		}
+		name, err := a.apply(next, content, !noBackup)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Applied to %d files. History: %s\n", len(targets), filepath.Join(a.history, name+".md"))
+		return nil
+	case "restore":
+		return a.restore(name)
+	}
+	return nil
+}
+func historyName(name string) bool {
+	_, err := time.Parse("20060102150405", strings.TrimSuffix(name, ".md"))
+	return err == nil && filepath.Base(name) == name
+}
+func (a *app) list(applies, backups bool) error {
+	entries, err := os.ReadDir(a.history)
+	if errors.Is(err, os.ErrNotExist) {
+		fmt.Println("No history.")
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if !historyName(e.Name()) || applies && e.IsDir() || backups && !e.IsDir() {
+			continue
+		}
+		t, _ := time.ParseInLocation("20060102150405", strings.TrimSuffix(e.Name(), ".md"), time.Local)
+		kind := "apply"
+		if e.IsDir() {
+			kind = "backup"
+		}
+		fmt.Printf("%s  %s  %s  %s\n", e.Name(), kind, t.Format("2006-01-02 15:04:05 MST"), filepath.Join(a.history, e.Name()))
+	}
+	return nil
+}
+func (a *app) restore(name string) error {
+	if !historyName(name) {
+		return errors.New("--name must be a timestamp or timestamp.md")
+	}
+	p := filepath.Join(a.history, name)
+	if err := safePath(p); err != nil {
+		return err
+	}
+	var next []snapshot
+	var content []byte
+	if strings.HasSuffix(name, ".md") {
+		var err error
+		content, err = os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		metadata := strings.TrimSuffix(p, ".md") + ".json"
+		if err := safePath(metadata); err != nil {
+			return err
+		}
+		b, err := os.ReadFile(metadata)
+		if err != nil {
+			return err
+		}
+		if err = json.Unmarshal(b, &next); err != nil {
+			return err
+		}
+		seen := map[string]bool{}
+		for i := range next {
+			relative := next[i].Path
+			if filepath.IsAbs(relative) || relative == "." {
+				return errors.New("invalid history path")
+			}
+			next[i].Path, err = a.resolve(relative)
+			if err != nil {
+				return err
+			}
+			if seen[next[i].Path] {
+				return errors.New("duplicate history path")
+			}
+			seen[next[i].Path] = true
+		}
+	} else {
+		metadata := filepath.Join(p, ".ai-cross-manifest.json")
+		if err := safePath(metadata); err != nil {
+			return err
+		}
+		b, err := os.ReadFile(metadata)
+		if err != nil {
+			return err
+		}
+		if err = json.Unmarshal(b, &next); err != nil {
+			return err
+		}
+		seen := map[string]bool{}
+		for i := range next {
+			s := &next[i]
+			relative := s.Path
+			if filepath.IsAbs(relative) || relative == "." {
+				return errors.New("invalid backup path")
+			}
+			s.Path, err = a.resolve(relative)
+			if err != nil {
+				return err
+			}
+			if seen[s.Path] {
+				return errors.New("duplicate backup path")
+			}
+			seen[s.Path] = true
+			if s.Exists {
+				source := filepath.Join(p, relative)
+				if err = safePath(source); err != nil {
+					return err
+				}
+				s.Data, err = os.ReadFile(source)
+				if err != nil {
+					return err
+				}
+			}
+			content = append(content, []byte(fmt.Sprintf("\n## %s\n\n", relative))...)
+			content = append(content, s.Data...)
+		}
+	}
+	if len(next) == 0 {
+		return errors.New("history has no files to restore")
+	}
+	record, err := a.apply(next, content, true)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Restored %s. History: %s\n", name, filepath.Join(a.history, record+".md"))
+	return nil
+}
+func readClipboard() ([]byte, error) {
+	var commands [][]string
+	switch runtime.GOOS {
+	case "darwin":
+		commands = [][]string{{"pbpaste"}}
+	case "windows":
+		commands = [][]string{{"powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(); Get-Clipboard -Raw"}}
+	default:
+		commands = [][]string{{"wl-paste", "--no-newline"}, {"xclip", "-selection", "clipboard", "-o"}, {"xsel", "--clipboard", "--output"}}
+	}
+	var failures error
+	for _, args := range commands {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		b, err := exec.CommandContext(ctx, args[0], args[1:]...).Output()
+		cancel()
+		if err == nil {
+			return b, nil
+		}
+		failures = errors.Join(failures, err)
+	}
+	return nil, fmt.Errorf("clipboard unavailable: %w", failures)
+}
+func readInput() ([]byte, error) {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return io.ReadAll(os.Stdin)
+	}
+	return editInput()
+}
