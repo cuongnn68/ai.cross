@@ -1,8 +1,8 @@
 # ai-cross
 
-- Sync instruction files across AI coding agents, with backups and restore.
-- [Users](#users): install, apply instructions, configure paths, and restore history.
-- [Developers](#developers): build locally, navigate the code, and verify changes.
+- Sync AI coding rules (e.g., “use TypeScript”) into agent instruction files such as `AGENTS.md` and `CLAUDE.md`.
+- Apply rules to one project or your user account with one command.
+- Back up existing rules and restore previous versions.
 
 ## Users
 
