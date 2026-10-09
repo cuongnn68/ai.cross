@@ -15,6 +15,7 @@ import (
 )
 
 type scopeConfig struct {
+	URL        string   `yaml:"url,omitempty"`
 	Additional []string `yaml:"additional"`
 	Ignore     []string `yaml:"ignore"`
 }
@@ -262,6 +263,89 @@ func put(s snapshot) error {
 	return err
 }
 func (a *app) apply(next []snapshot, content []byte, backup bool) (string, error) {
+	return a.applyWithURL(next, content, backup, "")
+}
+
+// savedURLSnapshot is called under the write lock and keeps existing YAML comments
+// and unrelated settings. It follows the same config filename precedence as newApp.
+func (a *app) savedURLSnapshot(url string) (snapshot, error) {
+	p := filepath.Join(a.data, "config.yml")
+	var doc yaml.Node
+	for _, name := range []string{"config.yml", "config.yaml"} {
+		candidate := filepath.Join(a.data, name)
+		s, err := capture(candidate)
+		if err != nil {
+			return snapshot{}, err
+		}
+		if !s.Exists {
+			continue
+		}
+		p = candidate
+		// Revalidate the current config in case it changed since startup.
+		var cfg config
+		decoder := yaml.NewDecoder(bytes.NewReader(s.Data))
+		decoder.KnownFields(true)
+		if err := decoder.Decode(&cfg); err != nil {
+			return snapshot{}, err
+		}
+		if err := yaml.Unmarshal(s.Data, &doc); err != nil {
+			return snapshot{}, err
+		}
+		break
+	}
+	if len(doc.Content) == 0 {
+		doc = yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{{Kind: yaml.MappingNode}}}
+	}
+	scope := "local"
+	if a.global {
+		scope = "global"
+	}
+	node := doc.Content[0]
+	for _, key := range []string{"histories", scope, "url"} {
+		if node.Kind == yaml.AliasNode {
+			// Copy alias contents so updating one scope cannot change the other.
+			b, err := yaml.Marshal(node.Alias)
+			if err != nil {
+				return snapshot{}, err
+			}
+			var copy yaml.Node
+			if err := yaml.Unmarshal(b, &copy); err != nil {
+				return snapshot{}, err
+			}
+			*node = *copy.Content[0]
+			node.Anchor = ""
+		}
+		if node.Tag == "!!null" {
+			node.Kind, node.Tag, node.Value = yaml.MappingNode, "!!map", ""
+		}
+		if node.Kind != yaml.MappingNode {
+			return snapshot{}, errors.New("config scope must be a YAML mapping")
+		}
+		var child *yaml.Node
+		for i := 0; i < len(node.Content); i += 2 {
+			if node.Content[i].Value == key {
+				child = node.Content[i+1]
+				break
+			}
+		}
+		if child == nil {
+			child = &yaml.Node{Kind: yaml.MappingNode}
+			node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, child)
+		}
+		node = child
+	}
+	node.Kind, node.Tag, node.Value = yaml.ScalarNode, "!!str", url
+	node.Content, node.Alias, node.Anchor = nil, nil, ""
+	b, err := yaml.Marshal(&doc)
+	if err != nil {
+		return snapshot{}, err
+	}
+	s, err := capture(p)
+	s.Data, s.Exists = b, true
+	return s, err
+}
+
+func (a *app) applyWithURL(next []snapshot, content []byte, backup bool, url string) (string, error) {
 	if err := safePath(a.history); err != nil {
 		return "", err
 	}
@@ -344,6 +428,13 @@ func (a *app) apply(next []snapshot, content []byte, backup bool) (string, error
 	next = append(next, snapshot{Path: filepath.Join(a.history, name+".json"), Data: afterData, Mode: 0600, Exists: true})
 	record := filepath.Join(a.history, name+".md")
 	next = append(next, snapshot{Path: record, Data: content, Mode: 0600, Exists: true})
+	if url != "" {
+		s, err := a.savedURLSnapshot(url)
+		if err != nil {
+			return "", err
+		}
+		next = append(next, s)
+	}
 	if backup {
 		if err = os.Rename(stage, filepath.Join(a.history, name)); err != nil {
 			return "", err

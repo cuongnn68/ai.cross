@@ -62,6 +62,8 @@
   ```sh
   ai-cross apply --global --clipboard
   ai-cross apply --local --url https://example.com/instructions.md
+  ai-cross apply --local --url https://example.com/instructions.md --save-url
+  ai-cross apply --local --saved-url
   ai-cross apply --local --project /path/to/repo
   printf 'Use concise answers.\n' | ai-cross apply --local
   ```
@@ -75,7 +77,11 @@
 - `--url` downloads instructions from an HTTP(S) URL; use a raw text or Markdown link.
   - The response body is applied as-is; redirects are followed, with a 30-second timeout.
   - Failed downloads, non-2xx responses, and empty instructions are rejected before applying.
-  - Choose only one source: `--file`, `--url`, `--clipboard`, or `--input`.
+  - Add `--save-url` to save the URL in config when the apply succeeds.
+  - Use `--saved-url` to download fresh instructions from the saved URL and apply them again.
+  - Global and local URLs are separate; local scope has one shared URL across projects, and `--project` selects where to apply it.
+  - `--saved-url` fails if the selected scope has no saved URL. Normal applies keep the saved URL unless `--save-url` replaces it.
+  - Choose only one source: `--file`, `--url`, `--saved-url`, `--clipboard`, or `--input`.
 - Apply defaults to agents detected on PATH, using the same detection as `status`.
   - `--all` applies to every registered agent regardless of detection.
   - `--agents codex,claude` applies only to the specified agents regardless of detection.
@@ -112,11 +118,13 @@
   ```yaml
   histories:
     global:
+      url: https://example.com/global-instructions.md
       additional:
         - "~/VIBE.md"
       ignore:
         - "~/.claude/CLAUDE.md"
     local:
+      url: https://example.com/project-instructions.md
       additional:
         - "./.team/VIBE.md"
       ignore:
@@ -127,6 +135,9 @@
   - Existing matching files are overwritten.
   - Unmatched file globs create `ai-cross.md`, `.mdc`, or `.instructions.md` in a fixed parent dir.
   - Wildcard parent dirs must already have matching files; no fallback file is created there.
+- `url` is optional and used only with `apply --saved-url`.
+  - `--save-url` updates the existing config file, preserving other settings and comments; creates `config.yml` if neither filename exists.
+  - The URL update shares the instruction write lock and transaction; failed applies keep the previous saved URL.
 - Agents without fixed instruction paths need `additional` entries; arbitrary agent configs are not rewritten.
 - Local paths must stay inside the project; global paths must stay inside the home dir.
   - Symlink instruction paths are rejected.

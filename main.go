@@ -26,7 +26,7 @@ const help = `ai-cross — synchronize AI agent instruction files
 Commands:
   status [--global | --local] [--project DIR] [-v | --verbose]
   version
-  apply (--global | --local) [--all | --agents NAMES] [--project DIR] [--file FILE | --url URL | --clipboard | --input] [--no-backup]
+  apply (--global | --local) [--all | --agents NAMES] [--project DIR] [--file FILE | --url URL [--save-url] | --saved-url | --clipboard | --input] [--no-backup]
   black-hole (--global | --local) [--project DIR]
   histories [--global | --local] [--project DIR] [--applies | --backups]
   restore list [--global | --local] [--project DIR] [--applies | --backups]
@@ -39,6 +39,7 @@ Status defaults to a summary; -v or --verbose includes all instruction file loca
 Apply defaults to agents detected on PATH. --all selects every agent; --agents accepts comma-separated names or CLI commands.
 Black-hole removes all registered instruction files and config additional paths, including ignored paths, with a backup.
 Input defaults to a multiline editor; Ctrl+S applies, Esc cancels. Piped stdin is supported.
+Use --url URL --save-url to remember a URL for the selected scope; --saved-url downloads it again.
 Config: ~/.ai.cross/config.yml (or config.yaml).
 `
 
@@ -78,6 +79,7 @@ func run(args []string) error {
 	project := fs.String("project", ".", "project directory")
 	var file, url, name, agentNames string
 	var clipboard, input, noBackup, applies, backups bool
+	var saveURL, savedURL bool
 	var verbose bool
 	var all bool
 	if command == "status" {
@@ -89,6 +91,8 @@ func run(args []string) error {
 		fs.StringVar(&agentNames, "agents", "", "comma-separated agent names or CLI commands, regardless of detection")
 		fs.StringVar(&file, "file", "", "instruction source file")
 		fs.StringVar(&url, "url", "", "instruction source HTTP(S) URL (raw text or Markdown)")
+		fs.BoolVar(&saveURL, "save-url", false, "save --url in config after a successful apply for this scope")
+		fs.BoolVar(&savedURL, "saved-url", false, "download and apply the saved URL for this scope")
 		fs.BoolVar(&clipboard, "clipboard", false, "read clipboard")
 		fs.BoolVar(&input, "input", false, "read interactive input or stdin")
 		fs.BoolVar(&noBackup, "no-backup", false, "skip pre-apply backup")
@@ -177,13 +181,26 @@ func run(args []string) error {
 		return a.list(applies, backups)
 	case "apply":
 		count := 0
-		for _, v := range []bool{file != "", url != "", clipboard, input} {
+		for _, v := range []bool{file != "", url != "", savedURL, clipboard, input} {
 			if v {
 				count++
 			}
 		}
 		if count > 1 {
-			return errors.New("choose one source: --file, --url, --clipboard, or --input")
+			return errors.New("choose one source: --file, --url, --saved-url, --clipboard, or --input")
+		}
+		if saveURL && url == "" {
+			return errors.New("--save-url requires --url")
+		}
+		if savedURL {
+			url = a.config.URL
+			if url == "" {
+				scope := "local"
+				if a.global {
+					scope = "global"
+				}
+				return fmt.Errorf("no saved URL for %s scope; use --url URL --save-url first", scope)
+			}
 		}
 		selected, err := selectAgents(all, agentNames)
 		if err != nil {
@@ -223,7 +240,11 @@ func run(args []string) error {
 			s.Exists = true
 			next = append(next, s)
 		}
-		name, err := a.apply(next, content, !noBackup)
+		urlToSave := ""
+		if saveURL {
+			urlToSave = url
+		}
+		name, err := a.applyWithURL(next, content, !noBackup, urlToSave)
 		if err != nil {
 			return err
 		}

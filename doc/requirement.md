@@ -52,11 +52,13 @@ format:
 ```yaml
 histories:
   global:
+    url: https://example.com/global-instructions.md
     additional:
       - "~/VIBE.md"
     ignore:
       - "~/CLAUDE.md"
   local:
+    url: https://example.com/project-instructions.md
     additional:
       - "./.team/VIBE.md"
       - "./.user/VIBE.md"
@@ -79,6 +81,13 @@ histories:
 - apply should be atomic
 - apply the instruction (overwrite files)
 - have a flag to determine the source of new instructions: input, clipboard, file, HTTP(S) URL
+- support `--url URL --save-url` to save the URL in the selected scope's config as part of a successful apply
+  - preserve existing config filename, permissions, settings, and comments
+  - failed downloads or writes must not replace the saved URL
+- support `--saved-url` to fetch fresh content from the selected scope's saved URL
+  - global and local URLs are separate; the local URL is shared across projects
+  - require explicit scope and reject missing saved URLs or conflicting source flags
+  - `--save-url` requires `--url`; ordinary applies do not change the saved URL
 - default to input when no source flag is specified
 ## black-hole
 - require `--global` or `--local`; support `--project` for local scope
