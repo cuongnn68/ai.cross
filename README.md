@@ -32,7 +32,9 @@ ai-cross apply -l -r
 ai-cross status -g -v
 ```
 
-Pass short flags separately, such as `-g -A`; combined flags like `-gA` are unsupported.
+Combine short flags, eg `ai-cross apply -gsu URL` means `ai-cross apply -g -s -u URL`.
+Flags needing a value consume the rest of the group or the next argument, eg `-lacodex` means `-l -a codex`.
+Long flags and separate short flags still work.
 
 ## Users
 

@@ -14,7 +14,8 @@
   - apply: `-A` all, `-a` agents, `-f` file, `-u` URL, `-c` clipboard, `-i` input, `-s` save URL, `-r` saved URL, `-n` no backup
   - histories / restore list: `-a` applies, `-b` backups; restore: `-n` name
   - status: `-v` verbose; help: `-h`; top-level version: `-V`
-  - short flags are separate arguments, not combined bundles
+  - support combined short flags, eg `-gsu URL` means `-g -s -u URL`
+  - value-taking flags consume the remainder or the next argument; preserve long flags, explicit values, and `--`
 
 # Function
 ## status

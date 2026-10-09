@@ -43,6 +43,9 @@ Short flags (long flags also work):
   -n --name TIMESTAMP[.md] (restore)
   -v --verbose (status)           -h --help        -V --version
 
+Short flags can be combined: -gsu URL means -g -s -u URL.
+Value-taking flags consume the rest of the group or the next argument.
+
 Status and histories default to local scope. Local scope is --project or cwd.
 Status defaults to a summary; -v or --verbose includes all instruction file locations.
 Apply defaults to agents detected on PATH. --all selects every agent; --agents accepts comma-separated names or CLI commands.
@@ -124,7 +127,7 @@ func run(args []string) error {
 			fs.Var(option.Value, alias.short, "alias for --"+alias.long)
 		}
 	}
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(expandShortFlags(fs, args)); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
 		}
@@ -275,6 +278,61 @@ func run(args []string) error {
 	}
 	return nil
 }
+func expandShortFlags(fs *flag.FlagSet, args []string) []string {
+	var expanded []string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" || !strings.HasPrefix(arg, "-") || arg == "-" {
+			return append(expanded, args[i:]...)
+		}
+		name, _, hasValue := strings.Cut(strings.TrimLeft(arg, "-"), "=")
+		if option := fs.Lookup(name); option != nil {
+			expanded = append(expanded, arg)
+			if !isBoolFlag(option) && !hasValue && i+1 < len(args) {
+				i++
+				expanded = append(expanded, args[i])
+			}
+			continue
+		}
+		if strings.HasPrefix(arg, "--") {
+			expanded = append(expanded, arg)
+			continue
+		}
+		for rest := arg[1:]; rest != ""; {
+			name, tail := rest[:1], rest[1:]
+			if name == "h" {
+				expanded = append(expanded, "-h")
+				break
+			}
+			option := fs.Lookup(name)
+			if option == nil {
+				expanded = append(expanded, "-"+rest)
+				break
+			}
+			if strings.HasPrefix(tail, "=") || !isBoolFlag(option) {
+				if tail != "" {
+					expanded = append(expanded, "-"+name+"="+strings.TrimPrefix(tail, "="))
+				} else {
+					expanded = append(expanded, "-"+name)
+					if i+1 < len(args) {
+						i++
+						expanded = append(expanded, args[i])
+					}
+				}
+				break
+			}
+			expanded = append(expanded, "-"+name)
+			rest = tail
+		}
+	}
+	return expanded
+}
+
+func isBoolFlag(option *flag.Flag) bool {
+	value, ok := option.Value.(interface{ IsBoolFlag() bool })
+	return ok && value.IsBoolFlag()
+}
+
 func historyName(name string) bool {
 	_, err := time.Parse("20060102150405", strings.TrimSuffix(name, ".md"))
 	return err == nil && filepath.Base(name) == name
