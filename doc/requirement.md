@@ -75,7 +75,7 @@ histories:
 - add a history record to that folder each time apply succeeds
 - apply should be atomic
 - apply the instruction (overwrite files)
-- have a flag to determine the source of new instructions: input, clipboard, file
+- have a flag to determine the source of new instructions: input, clipboard, file, HTTP(S) URL
 - default to input when no source flag is specified
 ## restore history
 ### list

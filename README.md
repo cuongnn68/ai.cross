@@ -40,6 +40,7 @@
 
   ```sh
   ai-cross apply --global --clipboard
+  ai-cross apply --local --url https://example.com/instructions.md
   ai-cross apply --local --project /path/to/repo
   printf 'Use concise answers.\n' | ai-cross apply --local
   ```
@@ -50,6 +51,10 @@
   - `status` and `histories` default to local scope.
 - With no source option, interactive input opens a multiline editor; Ctrl+S submits, Esc cancels.
 - Clipboard requires `pbpaste` on macOS, PowerShell on Windows, or `wl-paste`, `xclip`, or `xsel` on Linux.
+- `--url` downloads instructions from an HTTP(S) URL; use a raw text or Markdown link.
+  - The response body is applied as-is; redirects are followed, with a 30-second timeout.
+  - Failed downloads, non-2xx responses, and empty instructions are rejected before applying.
+  - Choose only one source: `--file`, `--url`, `--clipboard`, or `--input`.
 - Apply replaces contents at all target paths, regardless of detected installations.
   - `status` checks executables on PATH; IDE extensions and cloud installations may not be detected.
   - See the [agent location reference](doc/ai-agent-instruction-files.md) for supported paths.

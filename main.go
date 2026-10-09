@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,7 +25,7 @@ const help = `ai-cross — synchronize AI agent instruction files
 Commands:
   status [--global | --local] [--project DIR] [-v | --verbose]
   version
-  apply (--global | --local) [--project DIR] [--file FILE | --clipboard | --input] [--no-backup]
+  apply (--global | --local) [--project DIR] [--file FILE | --url URL | --clipboard | --input] [--no-backup]
   histories [--global | --local] [--project DIR] [--applies | --backups]
   restore list [--global | --local] [--project DIR] [--applies | --backups]
   restore (--global | --local) --name TIMESTAMP[.md] [--project DIR]
@@ -71,7 +72,7 @@ func run(args []string) error {
 	global := fs.Bool("global", false, "use home-dir instructions")
 	local := fs.Bool("local", false, "use project instructions")
 	project := fs.String("project", ".", "project directory")
-	var file, name string
+	var file, url, name string
 	var clipboard, input, noBackup, applies, backups bool
 	var verbose bool
 	if command == "status" {
@@ -80,6 +81,7 @@ func run(args []string) error {
 	}
 	if command == "apply" {
 		fs.StringVar(&file, "file", "", "instruction source file")
+		fs.StringVar(&url, "url", "", "instruction source HTTP(S) URL (raw text or Markdown)")
 		fs.BoolVar(&clipboard, "clipboard", false, "read clipboard")
 		fs.BoolVar(&input, "input", false, "read interactive input or stdin")
 		fs.BoolVar(&noBackup, "no-backup", false, "skip pre-apply backup")
@@ -166,13 +168,13 @@ func run(args []string) error {
 		return a.list(applies, backups)
 	case "apply":
 		count := 0
-		for _, v := range []bool{file != "", clipboard, input} {
+		for _, v := range []bool{file != "", url != "", clipboard, input} {
 			if v {
 				count++
 			}
 		}
 		if count > 1 {
-			return errors.New("choose one source: --file, --clipboard, or --input")
+			return errors.New("choose one source: --file, --url, --clipboard, or --input")
 		}
 		targets, err := a.targets()
 		if err != nil {
@@ -185,6 +187,8 @@ func run(args []string) error {
 		switch {
 		case file != "":
 			content, err = os.ReadFile(file)
+		case url != "":
+			content, err = readURL(url)
 		case clipboard:
 			content, err = readClipboard()
 		default:
@@ -335,6 +339,29 @@ func (a *app) restore(name string) error {
 	}
 	fmt.Printf("Restored %s. History: %s\n", name, filepath.Join(a.history, record+".md"))
 	return nil
+}
+func readURL(url string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("invalid instruction URL: %w", err)
+	}
+	if (req.URL.Scheme != "http" && req.URL.Scheme != "https") || req.URL.Host == "" {
+		return nil, errors.New("instruction URL must use http:// or https:// with a host")
+	}
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch instructions: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("fetch instructions: HTTP %s", resp.Status)
+	}
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read instructions: %w", err)
+	}
+	return content, nil
 }
 func readClipboard() ([]byte, error) {
 	var commands [][]string
