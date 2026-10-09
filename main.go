@@ -272,6 +272,9 @@ func run(args []string) error {
 			return err
 		}
 		fmt.Printf("Applied to %d files. History: %s\n", len(targets), filepath.Join(a.history, name+".md"))
+		for _, p := range targets {
+			fmt.Printf("  %s\n", p)
+		}
 		return nil
 	case "restore":
 		return a.restore(name)

@@ -115,6 +115,7 @@ Long flags and separate short flags still work.
   - `--saved-url` fails if the selected scope has no saved URL. Normal applies keep the saved URL unless `--save-url` replaces it.
   - Choose only one source: `--file`, `--url`, `--saved-url`, `--clipboard`, or `--input`.
 - Apply defaults to agents detected on PATH, using the same detection as `status`.
+  - After success, prints every applied file's absolute path below the summary.
   - `--all` applies to every registered agent regardless of detection.
   - `--agents codex,claude` applies only to the specified agents regardless of detection.
   - Agent selection accepts case-insensitive names from `status -v` or registered CLI commands, eg `--agents "Roo Code,cursor-agent"`.
