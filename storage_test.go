@@ -171,6 +171,7 @@ func TestBlackHoleAndRestore(t *testing.T) {
 			t.Setenv("CODEX_HOME", "")
 			t.Setenv("PATH", t.TempDir())
 			a.config.Additional = []string{".team/*.md"}
+			a.config.Ignore = []string{files[0], ".team/*.md"}
 			for _, p := range append(files, "notes.md") {
 				if err := writeFile(filepath.Join(a.root, p), []byte("original"), 0640); err != nil {
 					t.Fatal(err)
@@ -212,5 +213,39 @@ func TestBlackHoleAndRestore(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBlackHoleRequiresScope(t *testing.T) {
+	for _, args := range [][]string{{"black-hole"}, {"black-hole", "--global", "--local"}} {
+		if err := run(args); err == nil {
+			t.Fatalf("accepted invalid scope: %v", args)
+		}
+	}
+}
+
+func TestBlackHoleCommand(t *testing.T) {
+	a := fixture(t)
+	t.Setenv("HOME", a.home)
+	t.Setenv("USERPROFILE", a.home)
+	t.Setenv("CODEX_HOME", "")
+	t.Setenv("PATH", t.TempDir())
+	for _, args := range [][]string{
+		{"black-hole", "--local", "--project", a.root},
+		{"black-hole", "--global", "--project", a.root},
+	} {
+		p := filepath.Join(a.root, "AGENTS.md")
+		if args[1] == "--global" {
+			p = filepath.Join(a.home, ".codex", "AGENTS.md")
+		}
+		if err := writeFile(p, []byte("rules"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := run(args); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(p); !os.IsNotExist(err) {
+			t.Fatalf("command did not remove %s: %v", p, err)
+		}
 	}
 }

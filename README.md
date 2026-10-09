@@ -87,6 +87,22 @@
   - `status` checks executables on PATH; IDE extensions and cloud installations may not be detected.
   - See the [agent location reference](doc/ai-agent-instruction-files.md) for supported paths.
 
+### Remove instructions
+
+- Remove every registered agent's instruction files in the selected scope:
+
+  ```sh
+  ai-cross black-hole --local
+  ai-cross black-hole --local --project /path/to/repo
+  ai-cross black-hole --global
+  ```
+
+- Requires `--local` or `--global`; includes agents not detected on PATH.
+- Includes config `additional` paths and removes files even if listed in `ignore`.
+- Uses the registered paths for the selected scope; does not search nested projects or change rules stored in agent settings.
+- Backs up existing files before deletion; use the printed backup name with `restore` to recover.
+- Preserves unrelated files and applies the existing scope, symlink, locking, and rollback checks.
+
 ### Config
 
 - Use `~/.ai.cross/config.yml` or `config.yaml`; `config.yml` takes precedence.

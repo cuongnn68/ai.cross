@@ -27,6 +27,7 @@ Commands:
   status [--global | --local] [--project DIR] [-v | --verbose]
   version
   apply (--global | --local) [--all | --agents NAMES] [--project DIR] [--file FILE | --url URL | --clipboard | --input] [--no-backup]
+  black-hole (--global | --local) [--project DIR]
   histories [--global | --local] [--project DIR] [--applies | --backups]
   restore list [--global | --local] [--project DIR] [--applies | --backups]
   restore (--global | --local) --name TIMESTAMP[.md] [--project DIR]
@@ -36,6 +37,7 @@ Commands:
 Status and histories default to local scope. Local scope is --project or cwd.
 Status defaults to a summary; -v or --verbose includes all instruction file locations.
 Apply defaults to agents detected on PATH. --all selects every agent; --agents accepts comma-separated names or CLI commands.
+Black-hole removes all registered instruction files and config additional paths, including ignored paths, with a backup.
 Input defaults to a multiline editor; Ctrl+S applies, Esc cancels. Piped stdin is supported.
 Config: ~/.ai.cross/config.yml (or config.yaml).
 `
@@ -66,7 +68,7 @@ func run(args []string) error {
 		args = args[1:]
 	}
 	switch command {
-	case "status", "apply", "histories", "restore", "config":
+	case "status", "apply", "black-hole", "histories", "restore", "config":
 	default:
 		return fmt.Errorf("unknown command %q; use help", command)
 	}
@@ -110,7 +112,7 @@ func run(args []string) error {
 	if *global && *local {
 		return errors.New("choose one scope: --global or --local")
 	}
-	if (command == "apply" || command == "restore") && !*global && !*local {
+	if (command == "apply" || command == "restore" || command == "black-hole") && !*global && !*local {
 		return errors.New("explicit --global or --local is required")
 	}
 	a, err := newApp(*global, *project)
@@ -118,6 +120,8 @@ func run(args []string) error {
 		return err
 	}
 	switch command {
+	case "black-hole":
+		return a.blackHole()
 	case "config":
 		fmt.Printf("Config: %s (or config.yaml)\n", filepath.Join(a.data, "config.yml"))
 		return nil
@@ -235,7 +239,9 @@ func historyName(name string) bool {
 	return err == nil && filepath.Base(name) == name
 }
 func (a *app) blackHole() error {
-	targets, err := a.targets(agents)
+	selection := *a
+	selection.config.Ignore = nil
+	targets, err := selection.targets(agents)
 	if err != nil {
 		return err
 	}

@@ -80,6 +80,14 @@ histories:
 - apply the instruction (overwrite files)
 - have a flag to determine the source of new instructions: input, clipboard, file, HTTP(S) URL
 - default to input when no source flag is specified
+## black-hole
+- require `--global` or `--local`; support `--project` for local scope
+- delete existing instruction files for every registered agent regardless of detection
+- include config additional paths and remove ignored files too
+- use existing registered paths; do not recursively search projects or rewrite agent settings
+- back up before removal and support restoring the backup
+- reuse scope validation, symlink checks, locking, and transactional rollback
+
 ## restore history
 ### list
 - list all
