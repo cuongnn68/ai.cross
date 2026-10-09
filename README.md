@@ -4,6 +4,32 @@
 - Apply rules to one project or your user account with one command.
 - Back up existing rules and restore previous versions.
 
+Short flags are available alongside the long flags:
+
+| Short | Long | Commands |
+| --- | --- | --- |
+| `-g`, `-l`, `-p DIR` | `--global`, `--local`, `--project DIR` | Scope and project selection |
+| `-A`, `-a NAMES` | `--all`, `--agents NAMES` | `apply` |
+| `-f FILE`, `-u URL` | `--file FILE`, `--url URL` | `apply` |
+| `-c`, `-i` | `--clipboard`, `--input` | `apply` |
+| `-s`, `-r` | `--save-url`, `--saved-url` | `apply` |
+| `-n` | `--no-backup` | `apply` |
+| `-a`, `-b` | `--applies`, `--backups` | `histories`, `restore list` |
+| `-n NAME` | `--name NAME` | `restore` |
+| `-v` | `--verbose` | `status` |
+| `-h` | `--help` | Top level and command help |
+| `-V` | `--version` | Top level |
+
+For example:
+
+```sh
+ai-cross apply -l -a codex,claude -u https://example.com/rules.md -s
+ai-cross apply -l -r
+ai-cross status -g -v
+```
+
+Pass short flags separately, such as `-g -A`; combined flags like `-gA` are unsupported.
+
 ## Users
 
 ### Install

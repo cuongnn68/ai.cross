@@ -34,6 +34,15 @@ Commands:
   config
   help
 
+Short flags (long flags also work):
+  -g --global     -l --local       -p --project DIR
+  -A --all        -a --agents NAMES (apply)
+  -f --file FILE  -u --url URL     -c --clipboard   -i --input
+  -s --save-url   -r --saved-url   -n --no-backup (apply)
+  -a --applies    -b --backups (histories / restore list)
+  -n --name TIMESTAMP[.md] (restore)
+  -v --verbose (status)           -h --help        -V --version
+
 Status and histories default to local scope. Local scope is --project or cwd.
 Status defaults to a summary; -v or --verbose includes all instruction file locations.
 Apply defaults to agents detected on PATH. --all selects every agent; --agents accepts comma-separated names or CLI commands.
@@ -60,7 +69,7 @@ func run(args []string) error {
 		fmt.Print(help)
 		return nil
 	}
-	if command == "version" || command == "--version" {
+	if command == "version" || command == "--version" || command == "-V" {
 		fmt.Println(version)
 		return nil
 	}
@@ -103,6 +112,17 @@ func run(args []string) error {
 	if command == "histories" {
 		fs.BoolVar(&applies, "applies", false, "only applied instructions")
 		fs.BoolVar(&backups, "backups", false, "only pre-apply backups")
+	}
+	for _, alias := range []struct{ short, long string }{
+		{"g", "global"}, {"l", "local"}, {"p", "project"},
+		{"A", "all"}, {"a", "agents"}, {"f", "file"}, {"u", "url"},
+		{"s", "save-url"}, {"r", "saved-url"}, {"c", "clipboard"},
+		{"i", "input"}, {"n", "no-backup"}, {"n", "name"},
+		{"a", "applies"}, {"b", "backups"},
+	} {
+		if option := fs.Lookup(alias.long); option != nil {
+			fs.Var(option.Value, alias.short, "alias for --"+alias.long)
+		}
 	}
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {

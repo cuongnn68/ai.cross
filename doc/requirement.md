@@ -9,6 +9,12 @@
 - easy to extend when adding more AI tools
 - easy to update when AI tools change their config
 - should work on all platforms: macOS/Windows/Linux
+- offer short aliases for every CLI flag while preserving long flags and their validation
+  - scope: `-g` global, `-l` local, `-p` project
+  - apply: `-A` all, `-a` agents, `-f` file, `-u` URL, `-c` clipboard, `-i` input, `-s` save URL, `-r` saved URL, `-n` no backup
+  - histories / restore list: `-a` applies, `-b` backups; restore: `-n` name
+  - status: `-v` verbose; help: `-h`; top-level version: `-V`
+  - short flags are separate arguments, not combined bundles
 
 # Function
 ## status
