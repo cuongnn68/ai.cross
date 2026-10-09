@@ -14,7 +14,7 @@ class AiCross < Formula
 
     (testpath/"project").mkpath
     (testpath/"instructions.md").write "Use concise answers.\n"
-    system bin/"ai-cross", "apply", "--local", "--project", testpath/"project",
+    system bin/"ai-cross", "apply", "--all", "--local", "--project", testpath/"project",
            "--file", testpath/"instructions.md"
 
     assert_equal "Use concise answers.\n", (testpath/"project/AGENTS.md").read

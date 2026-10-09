@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,4 +62,45 @@ func (a agent) installed() string {
 		}
 	}
 	return agentNotDetected
+}
+
+func selectAgents(all bool, names string) ([]agent, error) {
+	if all && names != "" {
+		return nil, fmt.Errorf("choose --all or --agents")
+	}
+	if all {
+		return agents, nil
+	}
+	var selected []agent
+	if names == "" {
+		for _, a := range agents {
+			if a.installed() != agentNotDetected {
+				selected = append(selected, a)
+			}
+		}
+		return selected, nil
+	}
+	seen := map[string]bool{}
+	for _, name := range strings.Split(names, ",") {
+		name = strings.TrimSpace(name)
+		found := false
+		for _, a := range agents {
+			aliases := append([]string{a.Name}, a.Commands...)
+			for _, alias := range aliases {
+				if !strings.EqualFold(name, alias) {
+					continue
+				}
+				if !seen[a.Name] {
+					selected = append(selected, a)
+					seen[a.Name] = true
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("unknown agent %q; use names from status -v or registered CLI commands", name)
+		}
+	}
+	return selected, nil
 }

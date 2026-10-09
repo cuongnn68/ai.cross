@@ -26,7 +26,7 @@ const help = `ai-cross — synchronize AI agent instruction files
 Commands:
   status [--global | --local] [--project DIR] [-v | --verbose]
   version
-  apply (--global | --local) [--project DIR] [--file FILE | --url URL | --clipboard | --input] [--no-backup]
+  apply (--global | --local) [--all | --agents NAMES] [--project DIR] [--file FILE | --url URL | --clipboard | --input] [--no-backup]
   histories [--global | --local] [--project DIR] [--applies | --backups]
   restore list [--global | --local] [--project DIR] [--applies | --backups]
   restore (--global | --local) --name TIMESTAMP[.md] [--project DIR]
@@ -35,6 +35,7 @@ Commands:
 
 Status and histories default to local scope. Local scope is --project or cwd.
 Status defaults to a summary; -v or --verbose includes all instruction file locations.
+Apply defaults to agents detected on PATH. --all selects every agent; --agents accepts comma-separated names or CLI commands.
 Input defaults to a multiline editor; Ctrl+S applies, Esc cancels. Piped stdin is supported.
 Config: ~/.ai.cross/config.yml (or config.yaml).
 `
@@ -73,14 +74,17 @@ func run(args []string) error {
 	global := fs.Bool("global", false, "use home-dir instructions")
 	local := fs.Bool("local", false, "use project instructions")
 	project := fs.String("project", ".", "project directory")
-	var file, url, name string
+	var file, url, name, agentNames string
 	var clipboard, input, noBackup, applies, backups bool
 	var verbose bool
+	var all bool
 	if command == "status" {
 		fs.BoolVar(&verbose, "v", false, "show full status with instruction file locations")
 		fs.BoolVar(&verbose, "verbose", false, "show full status with instruction file locations")
 	}
 	if command == "apply" {
+		fs.BoolVar(&all, "all", false, "apply to all registered agents regardless of detection")
+		fs.StringVar(&agentNames, "agents", "", "comma-separated agent names or CLI commands, regardless of detection")
 		fs.StringVar(&file, "file", "", "instruction source file")
 		fs.StringVar(&url, "url", "", "instruction source HTTP(S) URL (raw text or Markdown)")
 		fs.BoolVar(&clipboard, "clipboard", false, "read clipboard")
@@ -177,12 +181,16 @@ func run(args []string) error {
 		if count > 1 {
 			return errors.New("choose one source: --file, --url, --clipboard, or --input")
 		}
-		targets, err := a.targets()
+		selected, err := selectAgents(all, agentNames)
+		if err != nil {
+			return err
+		}
+		targets, err := a.targets(selected)
 		if err != nil {
 			return err
 		}
 		if len(targets) == 0 {
-			return errors.New("no instruction targets")
+			return errors.New("no instruction targets; use status -v to check detection, --all, or --agents")
 		}
 		var content []byte
 		switch {

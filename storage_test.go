@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -93,7 +94,7 @@ func TestPathsAndIgnores(t *testing.T) {
 		}
 	}
 	a.config = scopeConfig{Additional: []string{".team/VIBE.md"}, Ignore: []string{"CLAUDE.md", ".cursor/rules/*.mdc"}}
-	targets, err := a.targets()
+	targets, err := a.targets(agents)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,5 +118,35 @@ func TestConcurrentWriteRejected(t *testing.T) {
 	os.WriteFile(filepath.Join(a.data, "write.lock"), nil, 0600)
 	if _, err := a.apply(nil, nil, true); err == nil {
 		t.Fatal("accepted locked write")
+	}
+}
+
+func TestSelectedAgentTargets(t *testing.T) {
+	a := fixture(t)
+	a.config = scopeConfig{Additional: []string{".team/VIBE.md"}, Ignore: []string{"AGENTS.override.md"}}
+	selected, err := selectAgents(false, "codex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	targets, err := a.targets(selected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{filepath.Join(a.root, ".team", "VIBE.md"), filepath.Join(a.root, "AGENTS.md")}
+	if !reflect.DeepEqual(targets, want) {
+		t.Fatalf("targets %v, want %v", targets, want)
+	}
+	targets, err = a.targets(nil)
+	if err != nil || !reflect.DeepEqual(targets, want[:1]) {
+		t.Fatalf("additional targets without agents: %v, %v", targets, err)
+	}
+	a.config = scopeConfig{}
+	a.global = true
+	a.root = a.home
+	t.Setenv("CODEX_HOME", "")
+	targets, err = a.targets(selected)
+	want = []string{filepath.Join(a.home, ".codex", "AGENTS.md"), filepath.Join(a.home, ".codex", "AGENTS.override.md")}
+	if err != nil || !reflect.DeepEqual(targets, want) {
+		t.Fatalf("global targets %v, want %v: %v", targets, want, err)
 	}
 }

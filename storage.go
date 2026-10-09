@@ -117,9 +117,9 @@ func safePath(p string) error {
 	}
 	return nil
 }
-func (a *app) targets() ([]string, error) {
+func (a *app) targets(selected []agent) ([]string, error) {
 	var patterns []string
-	for _, agent := range agents {
+	for _, agent := range selected {
 		patterns = append(patterns, agent.locations(a.global, a.home)...)
 	}
 	patterns = append(patterns, a.config.Additional...)

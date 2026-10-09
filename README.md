@@ -76,7 +76,14 @@
   - The response body is applied as-is; redirects are followed, with a 30-second timeout.
   - Failed downloads, non-2xx responses, and empty instructions are rejected before applying.
   - Choose only one source: `--file`, `--url`, `--clipboard`, or `--input`.
-- Apply replaces contents at all target paths, regardless of detected installations.
+- Apply defaults to agents detected on PATH, using the same detection as `status`.
+  - `--all` applies to every registered agent regardless of detection.
+  - `--agents codex,claude` applies only to the specified agents regardless of detection.
+  - Agent selection accepts case-insensitive names from `status -v` or registered CLI commands, eg `--agents "Roo Code,cursor-agent"`.
+  - `--all` and `--agents` cannot be combined; unknown agent names are rejected.
+  - Config `additional` and `ignore` still apply in every selection mode.
+  - Shared instruction paths affect every agent that reads them, eg `AGENTS.md`.
+  - If no target paths remain, Apply exits before reading input or writing files.
   - `status` checks executables on PATH; IDE extensions and cloud installations may not be detected.
   - See the [agent location reference](doc/ai-agent-instruction-files.md) for supported paths.
 

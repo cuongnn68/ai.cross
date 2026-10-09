@@ -66,8 +66,11 @@ histories:
 
 ## apply instruction file
 - require a flag to specify global or local repo scope
-- apply across all AI agents
-- include all AI agents in the hardcoded dictionary
+- default to AI agents detected on PATH using the same detection as status
+- support --all for every registered agent or --agents for comma-separated agent names or CLI commands regardless of detection
+  - reject conflicting selection flags and unknown agents
+  - deduplicate selected agents and shared instruction paths
+- select AI agents from the hardcoded dictionary
   - include additional paths specified in config
   - exclude ignored paths specified in config
 - automatically back up current files before applying unless a flag disables backups (`--no-backup` or similar)
