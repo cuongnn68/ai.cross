@@ -234,6 +234,32 @@ func historyName(name string) bool {
 	_, err := time.Parse("20060102150405", strings.TrimSuffix(name, ".md"))
 	return err == nil && filepath.Base(name) == name
 }
+func (a *app) blackHole() error {
+	targets, err := a.targets(agents)
+	if err != nil {
+		return err
+	}
+	var next []snapshot
+	for _, p := range targets {
+		s, err := capture(p)
+		if err != nil {
+			return err
+		}
+		if s.Exists {
+			next = append(next, snapshot{Path: p})
+		}
+	}
+	if len(next) == 0 {
+		fmt.Println("No instruction files to remove.")
+		return nil
+	}
+	name, err := a.apply(next, nil, true)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Removed %d instruction files. Backup: %s\n", len(next), filepath.Join(a.history, name))
+	return nil
+}
 func (a *app) list(applies, backups bool) error {
 	entries, err := os.ReadDir(a.history)
 	if errors.Is(err, os.ErrNotExist) {

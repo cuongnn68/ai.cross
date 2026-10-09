@@ -150,3 +150,67 @@ func TestSelectedAgentTargets(t *testing.T) {
 		t.Fatalf("global targets %v, want %v: %v", targets, want, err)
 	}
 }
+
+func TestBlackHoleAndRestore(t *testing.T) {
+	for _, global := range []bool{false, true} {
+		name := "local"
+		if global {
+			name = "global"
+		}
+		t.Run(name, func(t *testing.T) {
+			a := fixture(t)
+			other := filepath.Join(a.home, ".claude", "CLAUDE.md")
+			files := []string{"AGENTS.md", "AGENTS.override.md", ".roo/rules-code/custom.md", ".team/rules.md"}
+			if global {
+				other = filepath.Join(a.root, "AGENTS.md")
+				a.global = true
+				a.root = a.home
+				a.history = filepath.Join(a.data, "instructions", "global")
+				files = []string{".codex/AGENTS.md", ".codex/AGENTS.override.md", ".roo/rules-code/custom.md", ".team/rules.md"}
+			}
+			t.Setenv("CODEX_HOME", "")
+			t.Setenv("PATH", t.TempDir())
+			a.config.Additional = []string{".team/*.md"}
+			for _, p := range append(files, "notes.md") {
+				if err := writeFile(filepath.Join(a.root, p), []byte("original"), 0640); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := writeFile(other, []byte("other scope"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := a.blackHole(); err != nil {
+				t.Fatal(err)
+			}
+			for _, p := range files {
+				if _, err := os.Stat(filepath.Join(a.root, p)); !os.IsNotExist(err) {
+					t.Fatalf("instruction remains: %s: %v", p, err)
+				}
+			}
+			for _, p := range []string{other, filepath.Join(a.root, "notes.md")} {
+				if _, err := os.Stat(p); err != nil {
+					t.Fatalf("unrelated file removed: %s: %v", p, err)
+				}
+			}
+			entries, err := os.ReadDir(a.history)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var backup string
+			for _, e := range entries {
+				if e.IsDir() {
+					backup = e.Name()
+				}
+			}
+			if err := a.restore(backup); err != nil {
+				t.Fatal(err)
+			}
+			for _, p := range files {
+				b, err := os.ReadFile(filepath.Join(a.root, p))
+				if err != nil || string(b) != "original" {
+					t.Fatalf("restore %s: %q, %v", p, b, err)
+				}
+			}
+		})
+	}
+}
