@@ -1,5 +1,7 @@
 # ai-cross
 
+[![Build](https://github.com/cuongnn68/ai.cross/actions/workflows/windows.yml/badge.svg?branch=main)](https://github.com/cuongnn68/ai.cross/actions/workflows/windows.yml)
+
 - Sync AI coding rules (e.g., “use TypeScript”) into agent instruction files such as `AGENTS.md` and `CLAUDE.md`.
 - Apply rules to one project or your user account with one command.
 - Back up existing rules and restore previous versions.
@@ -222,7 +224,8 @@ Pass short flags separately, such as `-g -A`; combined flags like `-gA` are unsu
 - Local builds report version `dev`; release builds inject `main.version` via linker flags.
 
 - Every push to `main` runs [.github/workflows/windows.yml](.github/workflows/windows.yml).
-  - Builds x64 and ARM64 executables, checks the x64 CLI version, and publishes a GitHub Release with SHA-256 files.
+  - Runs `go test ./...` first, then builds x64 and ARM64 executables, checks the x64 CLI version, and publishes a GitHub Release with SHA-256 files.
+  - A failed test prevents building and publishing.
   - Release tags and CLI versions use `main-COMMIT_SHA`; the newest release becomes the installer download source.
   - Requires GitHub Actions to be enabled and its token to have `contents: write`; no custom secret is needed.
 

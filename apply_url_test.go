@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -85,7 +86,10 @@ func TestSaveURLPreservesConfig(t *testing.T) {
 				t.Fatalf("comments lost: %s", b)
 			}
 			info, err := os.Stat(p)
-			if err != nil || info.Mode().Perm() != 0640 {
+			if err != nil {
+				t.Fatal(err)
+			}
+			if runtime.GOOS != "windows" && info.Mode().Perm() != 0640 {
 				t.Fatalf("config permissions: %v, %v", info, err)
 			}
 			if filename == "config.yaml" {
