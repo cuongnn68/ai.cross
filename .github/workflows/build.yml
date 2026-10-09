@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+      CGO_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BUILD_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Build and check CLI
+        run: |
+          go build -trimpath -ldflags "-s -w -X main.version=main-$BUILD_SHA" -o bin/ai-cross .
+          test "$(./bin/ai-cross version)" = "main-$BUILD_SHA"
+      - name: Build Windows executables
+        run: |
+          mkdir -p dist
+          printf '%s\n' "$BUILD_SHA" > dist/build-sha.txt
+          for arch in amd64 arm64; do
+            file="dist/ai-cross-windows-$arch.exe"
+            GOOS=windows GOARCH="$arch" go build -trimpath -ldflags "-s -w -X main.version=main-$BUILD_SHA" -o "$file" .
+            sha256sum "$file" | cut -d ' ' -f 1 > "$file.sha256"
+          done
+      - name: Upload Windows executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: dist/*
+          if-no-files-found: error

@@ -1,10 +1,13 @@
 name: Windows release
 
 on:
-  push:
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
     branches: [main]
 
 permissions:
+  actions: read
   contents: write
 
 concurrency:
@@ -13,50 +16,46 @@ concurrency:
 
 jobs:
   release:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: windows-latest
     defaults:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - name: Download tested build
+        uses: actions/download-artifact@v4
         with:
-          go-version-file: go.mod
-      - name: Run tests
-        run: go test ./...
-      - name: Build Windows executables
-        env:
-          CGO_ENABLED: '0'
-          GOOS: windows
+          name: windows-release
+          path: dist
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Read build commit
         run: |
-          New-Item -ItemType Directory -Path dist | Out-Null
-          foreach ($arch in @('amd64', 'arm64')) {
-            $env:GOARCH = $arch
-            $file = "dist/ai-cross-windows-$arch.exe"
-            go build -trimpath -ldflags "-s -w -X main.version=main-$env:GITHUB_SHA" -o $file .
-            if ($LASTEXITCODE -ne 0) { throw "Build failed for $arch" }
-            (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant() |
-              Set-Content "$file.sha256" -Encoding ascii
-          }
+          $buildSha = (Get-Content dist/build-sha.txt -Raw).Trim()
+          if ($buildSha -notmatch '^[0-9a-f]{40}$') { throw 'Invalid build commit' }
+          "BUILD_SHA=$buildSha" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Remove-Item dist/build-sha.txt
       - name: Check CLI
         run: |
           $version = & ./dist/ai-cross-windows-amd64.exe version
-          if ($LASTEXITCODE -ne 0 -or $version -ne "main-$env:GITHUB_SHA") {
+          if ($LASTEXITCODE -ne 0 -or $version -ne "main-$env:BUILD_SHA") {
             throw 'Unexpected CLI version'
           }
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "main-$env:GITHUB_SHA"
+          $tag = "main-$env:BUILD_SHA"
           $files = @(Get-ChildItem dist -File | ForEach-Object { $_.FullName })
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag @files --clobber --repo $env:GITHUB_REPOSITORY
           } else {
-            gh release create $tag @files --target $env:GITHUB_SHA --latest `
-              --title "Main build $($env:GITHUB_SHA.Substring(0, 7))" `
-              --notes "Windows binaries built from main at $env:GITHUB_SHA." `
+            gh release create $tag @files --target $env:BUILD_SHA --latest `
+              --title "Main build $($env:BUILD_SHA.Substring(0, 7))" `
+              --notes "Windows binaries built from main at $env:BUILD_SHA." `
               --repo $env:GITHUB_REPOSITORY
           }
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
