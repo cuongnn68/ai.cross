@@ -8,6 +8,27 @@
 
 ### Install
 
+- Install on Windows from a regular PowerShell terminal; no admin rights or Go installation required:
+
+  ```powershell
+  $installer = Join-Path $env:TEMP 'ai-cross-install.ps1'
+  Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/cuongnn68/ai.cross/main/scripts/install.ps1 -OutFile $installer
+  & $installer
+  ai-cross help
+  ```
+
+- If script execution is blocked, allow it for this PowerShell session and run `& $installer` again:
+
+  ```powershell
+  Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+  ```
+
+- The installer downloads the latest Windows release, verifies SHA-256, and installs to `%LOCALAPPDATA%\ai-cross\bin`.
+  - Adds the install dir to user `PATH` and the current PowerShell session; restart other terminals afterward.
+  - Supports x64 and ARM64; rerun the installer to update.
+  - Downloads require public access to the repo and a successful Windows release build.
+  - Organization-enforced execution policies may still block scripts.
+
 - Install with Homebrew on macOS / Linux:
 
   ```sh
@@ -139,6 +160,11 @@
 
 - For Windows, build with `go build -o bin/ai-cross.exe .`.
 - Local builds report version `dev`; release builds inject `main.version` via linker flags.
+
+- Every push to `main` runs [.github/workflows/windows.yml](.github/workflows/windows.yml).
+  - Builds x64 and ARM64 executables, checks the x64 CLI version, and publishes a GitHub Release with SHA-256 files.
+  - Release tags and CLI versions use `main-COMMIT_SHA`; the newest release becomes the installer download source.
+  - Requires GitHub Actions to be enabled and its token to have `contents: write`; no custom secret is needed.
 
 ### Code layout
 
