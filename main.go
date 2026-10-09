@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"golang.org/x/term"
@@ -234,6 +235,7 @@ func (a *app) list(applies, backups bool) error {
 	if err != nil {
 		return err
 	}
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	for _, e := range entries {
 		if !historyName(e.Name()) || applies && e.IsDir() || backups && !e.IsDir() {
 			continue
@@ -243,9 +245,9 @@ func (a *app) list(applies, backups bool) error {
 		if e.IsDir() {
 			kind = "backup"
 		}
-		fmt.Printf("%s  %s  %s  %s\n", e.Name(), kind, t.Format("2006-01-02 15:04:05 MST"), filepath.Join(a.history, e.Name()))
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.Name(), kind, t.Format("2006-01-02 15:04:05 MST"), filepath.Join(a.history, e.Name()))
 	}
-	return nil
+	return w.Flush()
 }
 func (a *app) restore(name string) error {
 	if !historyName(name) {
